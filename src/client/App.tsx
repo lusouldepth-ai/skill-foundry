@@ -32,7 +32,7 @@ import {
   Workflow,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDefaultLanguage, t, type I18nKey, type Language } from "./i18n";
 import { getSkillVisual, type SkillVisualIcon } from "./skillVisuals";
 
@@ -73,6 +73,12 @@ interface AppConfig {
   backupDir: string;
 }
 
+interface ToastState {
+  id: number;
+  tone: "info" | "success" | "danger";
+  message: string;
+}
+
 const sourceOptions = ["all", "custom", "system", "plugin"] as const;
 const lifecycleOptions: Array<Lifecycle | "all" | "stale"> = ["all", "active", "optimize", "archive", "stale"];
 const initialLanguage = getInitialLanguage();
@@ -92,6 +98,8 @@ export function App() {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(t(initialLanguage, "status.scanning"));
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
   const tr = (key: I18nKey, values?: Record<string, string | number>) => t(language, key, values);
 
@@ -108,6 +116,14 @@ export function App() {
       setNotice(t(language, "status.synced", { count: data.skills.length, time: formatTime(data.scannedAt, language) }));
     }
   }, [language]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const timer = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   const skills = data?.skills ?? [];
   const selected = skills.find((skill) => skill.id === selectedId) ?? skills[0];
@@ -150,6 +166,61 @@ export function App() {
     return { total: skills.length, custom, protectedCount, optimize, stale, missing };
   }, [skills, staleDays]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      const isTyping = tagName === "INPUT" || tagName === "TEXTAREA" || target?.isContentEditable;
+
+      if (event.key === "/" && !isTyping) {
+        event.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+
+      if (isTyping || filteredSkills.length === 0) {
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        selectRelativeSkill(1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        selectRelativeSkill(-1);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        selectRelativeSkill(2);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        selectRelativeSkill(-2);
+      } else if (event.key.toLowerCase() === "e" && selected) {
+        event.preventDefault();
+        startEditingSelected();
+      } else if (event.key === "Escape" && editing) {
+        event.preventDefault();
+        setEditing(false);
+        setDraftContent(content);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [content, editing, filteredSkills, language, selected?.id, selected?.riskLevel, selectedId]);
+
+  function pushToast(message: string, tone: ToastState["tone"] = "success") {
+    setToast({ id: Date.now(), tone, message });
+  }
+
+  function selectRelativeSkill(offset: number) {
+    if (filteredSkills.length === 0) {
+      return;
+    }
+    const currentIndex = Math.max(0, filteredSkills.findIndex((skill) => skill.id === selectedId));
+    const nextIndex = Math.min(filteredSkills.length - 1, Math.max(0, currentIndex + offset));
+    setSelectedId(filteredSkills[nextIndex].id);
+  }
+
   async function loadAll() {
     await Promise.all([loadSkills(true), loadConfig()]);
   }
@@ -167,9 +238,15 @@ export function App() {
       const response = await fetch("/api/skills");
       const nextData = (await response.json()) as SkillsResponse;
       setData(nextData);
-      setNotice(t(language, "status.synced", { count: nextData.skills.length, time: formatTime(nextData.scannedAt, language) }));
+      const nextNotice = t(language, "status.synced", { count: nextData.skills.length, time: formatTime(nextData.scannedAt, language) });
+      setNotice(nextNotice);
+      if (showNotice) {
+        pushToast(nextNotice, "info");
+      }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : t(language, "status.scanFailed"));
+      const message = error instanceof Error ? error.message : t(language, "status.scanFailed");
+      setNotice(message);
+      pushToast(message, "danger");
     } finally {
       setBusy(false);
     }
@@ -198,6 +275,7 @@ export function App() {
       const nextData = (await response.json()) as SkillsResponse;
       setData(nextData);
       setNotice(t(language, "status.saved"));
+      pushToast(t(language, "status.saved"));
     } finally {
       setBusy(false);
     }
@@ -220,10 +298,14 @@ export function App() {
       }
       setContent(draftContent);
       setEditing(false);
-      setNotice(t(language, "status.savedBackup", { path: body.result.backupPath }));
+      const message = t(language, "status.savedBackup", { path: body.result.backupPath });
+      setNotice(message);
+      pushToast(message);
       await loadSkills(false);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : t(language, "status.scanFailed"));
+      const message = error instanceof Error ? error.message : t(language, "status.scanFailed");
+      setNotice(message);
+      pushToast(message, "danger");
     } finally {
       setBusy(false);
     }
@@ -248,9 +330,13 @@ export function App() {
       }
       setData(body.skills);
       setSelectedId(null);
-      setNotice(t(language, "status.quarantined", { path: body.result.destination }));
+      const message = t(language, "status.quarantined", { path: body.result.destination });
+      setNotice(message);
+      pushToast(message);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : t(language, "status.scanFailed"));
+      const message = error instanceof Error ? error.message : t(language, "status.scanFailed");
+      setNotice(message);
+      pushToast(message, "danger");
     } finally {
       setBusy(false);
     }
@@ -264,6 +350,7 @@ export function App() {
       return;
     }
     setEditing(true);
+    pushToast(t(language, "editor.editMode"), "info");
   }
 
   return (
@@ -315,6 +402,7 @@ export function App() {
             </label>
             <input
               id="search"
+              ref={searchRef}
               className="search-input"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -388,34 +476,61 @@ export function App() {
           </div>
 
           <div className="skill-grid">
-            {filteredSkills.map((skill) => (
-              <button
+            {filteredSkills.map((skill, index) => (
+              <article
                 key={skill.id}
                 className={selected?.id === skill.id ? "skill-card selected" : "skill-card"}
-                onClick={() => setSelectedId(skill.id)}
+                style={{ "--card-index": Math.min(index, 10) } as React.CSSProperties}
               >
-                <SkillArtwork skill={skill} />
-                <div className="skill-card-body">
-                  <div className="skill-card-top">
-                    <strong>{skill.name}</strong>
-                    {skill.favorite ? <Star size={15} fill="currentColor" /> : null}
+                <button
+                  className="skill-card-main"
+                  type="button"
+                  aria-label={tr("skill.select", { name: skill.name })}
+                  onClick={() => setSelectedId(skill.id)}
+                >
+                  <SkillArtwork skill={skill} />
+                  <div className="skill-card-body">
+                    <div className="skill-card-top">
+                      <strong>{skill.name}</strong>
+                      {skill.favorite ? <Star size={15} fill="currentColor" /> : null}
+                    </div>
+                    <p>{skill.description || tr("skill.noDescription")}</p>
+                    <div className="tags">
+                      <span>{sourceLabel(skill.sourceKind, language)}</span>
+                      <span>{lifecycleOptionLabel(skill.lifecycle, language)}</span>
+                      {isStale(skill, staleDays) ? <span className="warn">{tr("lifecycle.stale")}</span> : null}
+                      {skill.descriptionMissing ? <span className="warn">{tr("skill.missingDescription")}</span> : null}
+                    </div>
                   </div>
-                  <p>{skill.description || tr("skill.noDescription")}</p>
-                  <div className="tags">
-                    <span>{sourceLabel(skill.sourceKind, language)}</span>
-                    <span>{lifecycleOptionLabel(skill.lifecycle, language)}</span>
-                    {isStale(skill, staleDays) ? <span className="warn">{tr("lifecycle.stale")}</span> : null}
-                    {skill.descriptionMissing ? <span className="warn">{tr("skill.missingDescription")}</span> : null}
-                  </div>
+                </button>
+                <div className="skill-card-quick" aria-label={tr("skill.quickActions", { name: skill.name })}>
+                  <button
+                    type="button"
+                    className="quick-button"
+                    title={tr("actions.favorite")}
+                    aria-label={tr("actions.favorite")}
+                    onClick={() => patchState(skill.id, { favorite: !skill.favorite })}
+                  >
+                    <Heart size={14} fill={skill.favorite ? "currentColor" : "none"} />
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-button"
+                    title={tr("actions.markUsed")}
+                    aria-label={tr("actions.markUsed")}
+                    onClick={() => patchState(skill.id, { lastUsedAt: new Date().toISOString(), lifecycle: "active" })}
+                  >
+                    <Check size={14} />
+                  </button>
                 </div>
-              </button>
+              </article>
             ))}
           </div>
         </section>
 
         <aside className="detail-drawer">
           {selected ? (
-            <>
+            <div className="detail-content" key={selected.id}>
               <div className="detail-heading">
                 <SkillArtwork skill={selected} size="large" />
                 <div>
@@ -492,7 +607,13 @@ export function App() {
               <div className="editor-header">
                 <div>
                   <div className="panel-title">{tr("editor.title")}</div>
-                  <span>{selected.riskLevel === "protected" ? tr("editor.protected") : tr("editor.editable")}</span>
+                  <span className={editing && draftContent !== content ? "status-dirty" : undefined}>
+                    {editing && draftContent !== content
+                      ? tr("editor.unsaved")
+                      : selected.riskLevel === "protected"
+                        ? tr("editor.protected")
+                        : tr("editor.editable")}
+                  </span>
                 </div>
                 <div className="editor-actions">
                   {editing ? (
@@ -524,7 +645,7 @@ export function App() {
                   <code>{previewContent(content || selected.bodyPreview, language)}</code>
                 </pre>
               )}
-            </>
+            </div>
           ) : (
             <div className="empty-state">
               <Eye size={24} />
@@ -533,6 +654,12 @@ export function App() {
           )}
         </aside>
       </section>
+      {toast ? (
+        <div className={`toast ${toast.tone}`} role="status" aria-live="polite">
+          <span />
+          <p>{toast.message}</p>
+        </div>
+      ) : null}
     </main>
   );
 }

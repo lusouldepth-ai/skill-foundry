@@ -324,23 +324,20 @@ code {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(318px, 1fr));
   gap: 13px;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 .skill-card {
   height: 174px;
-  display: grid;
-  grid-template-columns: 98px minmax(0, 1fr);
-  gap: 13px;
   border: 1px solid var(--line);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 38%),
     rgba(242, 244, 237, 0.78);
-  padding: 13px;
-  text-align: left;
-  cursor: pointer;
   overflow: hidden;
   position: relative;
   transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  animation: card-in 360ms ease both;
+  animation-delay: calc(var(--card-index) * 22ms);
 }
 
 .skill-card::before {
@@ -368,9 +365,71 @@ code {
   background: var(--ink);
 }
 
-.skill-card:hover {
+.skill-card:hover,
+.skill-card:focus-within {
   border-color: var(--line-strong);
   transform: translateY(-2px);
+}
+
+.skill-card-main {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 98px minmax(0, 1fr);
+  gap: 13px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.skill-card-main:focus-visible,
+.quick-button:focus-visible,
+.icon-button:focus-visible,
+.seg:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.skill-card-quick {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 5px;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.skill-card:hover .skill-card-quick,
+.skill-card:focus-within .skill-card-quick,
+.skill-card.selected .skill-card-quick {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.quick-button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line-strong);
+  background: rgba(244, 245, 238, 0.92);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(20, 29, 27, 0.10);
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.quick-button:hover {
+  border-color: var(--ink);
+  background: var(--paper-strong);
+  transform: translateY(-1px);
 }
 
 .skill-art {
@@ -393,6 +452,26 @@ code {
     inset 0 0 0 1px rgba(255, 255, 255, 0.38),
     inset 0 -18px 34px rgba(25, 26, 23, 0.045),
     0 10px 22px rgba(31, 31, 27, 0.08);
+}
+
+.skill-card:hover .art-backplate,
+.skill-card:focus-within .art-backplate {
+  transform: translate(calc(var(--art-offset) * -0.16), calc(var(--art-offset) * 0.08)) rotate(calc(var(--art-angle) + 4deg));
+}
+
+.skill-card:hover .art-frame,
+.skill-card:focus-within .art-frame {
+  transform: translate(calc(var(--art-offset) * 0.10), calc(var(--art-offset) * -0.10)) rotate(calc(var(--art-angle) * -0.7 - 5deg));
+}
+
+.skill-card:hover .art-core,
+.skill-card:focus-within .art-core {
+  transform: translateY(-1px);
+}
+
+.variant-3:hover .art-core,
+.variant-3:focus-within .art-core {
+  transform: rotate(45deg) translateY(-1px);
 }
 
 .skill-art.large {
@@ -520,6 +599,16 @@ code {
   border-style: dashed;
 }
 
+.skill-card:hover .variant-3 .art-core,
+.skill-card:focus-within .variant-3 .art-core {
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.skill-card:hover .variant-3 .art-core svg,
+.skill-card:focus-within .variant-3 .art-core svg {
+  transform: rotate(-45deg);
+}
+
 .category-ai .art-motif span:nth-child(3),
 .category-browser .art-motif span:nth-child(3),
 .category-review .art-core {
@@ -608,6 +697,14 @@ code {
 .detail-drawer {
   display: flex;
   flex-direction: column;
+}
+
+.detail-content {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  animation: drawer-in 220ms ease both;
 }
 
 .detail-heading {
@@ -715,6 +812,10 @@ code {
   font-size: 12px;
 }
 
+.editor-header .status-dirty {
+  color: var(--amber);
+}
+
 .notes {
   width: 100%;
   min-height: 72px;
@@ -782,8 +883,92 @@ code {
   animation: spin 0.9s linear infinite;
 }
 
+.toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 20;
+  width: min(420px, calc(100vw - 44px));
+  min-height: 48px;
+  border: 1px solid var(--line-strong);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32), transparent 42%),
+    rgba(20, 22, 17, 0.94);
+  color: var(--paper-strong);
+  display: grid;
+  grid-template-columns: 4px 1fr;
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px 12px 10px 0;
+  box-shadow: 0 22px 54px rgba(20, 29, 27, 0.28);
+  animation: toast-in 220ms ease both;
+}
+
+.toast span {
+  background: var(--cyan);
+}
+
+.toast.success span {
+  background: var(--green);
+}
+
+.toast.danger span {
+  background: var(--red);
+}
+
+.toast p {
+  margin: 0;
+  align-self: center;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 }
