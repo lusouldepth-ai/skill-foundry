@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a local-first personal skill management dashboard for discovering, reviewing, and safely maintaining Codex/agent skills across local directories.
+Build a local-first personal skill management dashboard for discovering, reviewing, and safely maintaining Codex/agent skills across local directories. The dashboard must ask for explicit consent before scanning local skill folders.
 
 ## Product Direction
 
@@ -11,7 +11,7 @@ The first release is a hybrid of a catalog and lifecycle board. It prioritizes c
 - What skills exist on this machine?
 - Where is each skill installed?
 - Which skills look active, stale, duplicated, custom, system-owned, or plugin-owned?
-- What can be safely reviewed, edited, archived, or quarantined?
+- What can be safely reviewed, edited, updated, cleaned, or quarantined?
 
 ## Design Language
 
@@ -23,10 +23,12 @@ All destructive behavior is safe by default.
 
 - Scanning is read-only.
 - Local dashboard state is stored separately from skill source files.
+- First-run local scan requires explicit consent.
 - Delete means "move to quarantine" first, not permanent removal.
 - Permanent deletion is not part of the first release.
-- Auto-delete policies only produce cleanup candidates unless explicitly switched to quarantine mode.
+- Duplicate cleanup moves recommended extra copies to quarantine and remains recoverable.
 - Plugin/cache skills are protected by default; custom user skills can be managed more directly.
+- `data/` contains notes, backups, quarantine records, update source bindings, and the consent record; it is ignored by git.
 
 ## Discovery Model
 
@@ -34,6 +36,7 @@ Default scan roots:
 
 - `~/.codex/skills`
 - `~/.agents/skills`
+- `~/.codex/skills/.system`
 - `~/.codex/plugins/cache`
 
 The backend recursively finds `SKILL.md` files, parses front matter, derives metadata, and merges it with local dashboard state.
@@ -48,6 +51,8 @@ The backend recursively finds `SKILL.md` files, parses front matter, derives met
 - Safe quarantine action for custom skills.
 - Sync button plus automatic periodic refresh.
 - Settings for scan roots and stale thresholds.
+- First-run consent gate with backend enforcement before scan APIs run.
+- GitHub update binding and conservative update flow for custom skills.
 
 ## Implementation Architecture
 
@@ -57,6 +62,7 @@ Use a single local Node/Vite app:
 - Express API exposes scan, state updates, preview, and quarantine endpoints.
 - React frontend renders the dashboard and calls local API endpoints.
 - Local data lives under `data/` and is ignored by git.
+- Consent is stored locally in `data/scan-consent.json`; scan APIs return a consent-required error until it exists.
 
 ## Explicit Non-Goals For First Release
 

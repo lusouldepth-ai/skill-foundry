@@ -51,6 +51,42 @@ describe("mergeSkillState", () => {
     expect(merged[0].lastActivityAt).toBe("2026-03-01T00:00:00.000Z");
     expect(merged[0].lastActivitySource).toBe("session");
   });
+
+  test("marks duplicate skill names and recommends one keeper per group", () => {
+    const merged = mergeSkillState(
+      [
+        skill({ id: "custom:alpha", name: "alpha", sourceKind: "custom", modifiedAt: "2026-01-01T00:00:00.000Z" }),
+        skill({ id: "plugin-cache:alpha", name: "Alpha", sourceKind: "plugin", modifiedAt: "2026-04-01T00:00:00.000Z" }),
+        skill({ id: "custom:beta", name: "beta", sourceKind: "custom" })
+      ],
+      {
+        "custom:alpha": {
+          lastUsedAt: "2026-05-01T00:00:00.000Z"
+        }
+      }
+    );
+
+    const alphaCopies = merged.filter((entry) => entry.name.toLowerCase() === "alpha");
+    const beta = merged.find((entry) => entry.name === "beta");
+
+    expect(alphaCopies).toHaveLength(2);
+    expect(alphaCopies.every((entry) => entry.duplicateGroupSize === 2)).toBe(true);
+    expect(alphaCopies.find((entry) => entry.duplicateRecommendedAction === "keep")?.id).toBe("custom:alpha");
+    expect(alphaCopies.find((entry) => entry.duplicateRecommendedAction === "archive")?.id).toBe("plugin-cache:alpha");
+    expect(beta?.duplicateGroupSize).toBeUndefined();
+  });
+
+  test("prefers manageable custom duplicates over newer protected plugin copies", () => {
+    const merged = mergeSkillState(
+      [
+        skill({ id: "custom:alpha", name: "alpha", sourceKind: "custom", modifiedAt: "2026-01-01T00:00:00.000Z" }),
+        skill({ id: "plugin-cache:alpha", name: "alpha", sourceKind: "plugin", modifiedAt: "2026-05-01T00:00:00.000Z" })
+      ],
+      {}
+    );
+
+    expect(merged.find((entry) => entry.duplicateRecommendedAction === "keep")?.id).toBe("custom:alpha");
+  });
 });
 
 describe("StateStore", () => {

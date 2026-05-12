@@ -1,7 +1,9 @@
 {
-  "name": "skill-dashboard",
+  "name": "skill-foundry",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "description": "Local-first dashboard for discovering and safely maintaining Codex and agent skills.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "tsx src/server/index.ts --dev",

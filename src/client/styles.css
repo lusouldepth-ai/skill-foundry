@@ -235,6 +235,7 @@ h2 {
 }
 
 .search-input:focus,
+.source-input:focus,
 .notes:focus,
 .skill-editor:focus {
   border-color: var(--cyan);
@@ -274,6 +275,28 @@ h2 {
   margin-top: 20px;
   border-top: 1px solid var(--line);
   padding-top: 14px;
+}
+
+.duplicate-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--amber), var(--line) 62%);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 46%),
+    rgba(166, 102, 28, 0.055);
+}
+
+.duplicate-panel p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.duplicate-panel .icon-button {
+  width: 100%;
 }
 
 .sync-model {
@@ -701,6 +724,11 @@ code {
   color: var(--amber);
 }
 
+.tags .info {
+  border-color: rgba(45, 121, 128, 0.42);
+  color: var(--cyan);
+}
+
 .detail-drawer {
   display: flex;
   flex-direction: column;
@@ -744,6 +772,80 @@ code {
 .actions-help {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
+}
+
+.duplicate-help {
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--cyan), var(--line) 58%);
+  background: rgba(36, 111, 120, 0.055);
+}
+
+.update-panel {
+  margin-top: 12px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 48%),
+    rgba(242, 244, 237, 0.72);
+}
+
+.update-panel-top,
+.update-actions,
+.source-bind-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-panel-top {
+  justify-content: space-between;
+}
+
+.update-actions {
+  flex-shrink: 0;
+}
+
+.update-status {
+  display: inline-block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-update-available {
+  color: var(--cyan);
+}
+
+.status-local-changes,
+.status-error {
+  color: var(--amber);
+}
+
+.status-up-to-date {
+  color: var(--green);
+}
+
+.update-panel p {
+  margin: 9px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.source-bind-row {
+  margin-top: 10px;
+}
+
+.source-input {
+  min-width: 0;
+  flex: 1;
+  height: 38px;
+  border: 1px solid var(--line);
+  background: rgba(246, 247, 241, 0.90);
+  padding: 0 10px;
+  outline: none;
 }
 
 .icon-button {
@@ -796,6 +898,10 @@ code {
 }
 
 .icon-button.danger {
+  color: var(--red);
+}
+
+.text-button.danger {
   color: var(--red);
 }
 
@@ -877,6 +983,92 @@ code {
   font-size: 12px;
   line-height: 1.55;
   outline: none;
+}
+
+.consent-shell {
+  min-height: calc(100vh - 170px);
+  display: grid;
+  place-items: center;
+  padding: 26px 0 42px;
+}
+
+.consent-card {
+  width: min(760px, 100%);
+  border: 1px solid var(--line-strong);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 40%),
+    color-mix(in srgb, var(--paper), #ffffff 18%);
+  padding: 28px;
+  box-shadow: 0 20px 70px rgba(35, 46, 43, 0.1);
+}
+
+.consent-copy h2 {
+  margin: 4px 0 10px;
+  font-family: var(--display-font);
+  font-size: clamp(32px, 4vw, 54px);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.consent-copy p,
+.consent-grid p,
+.consent-footnote {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.consent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 22px 0;
+}
+
+.consent-grid > div,
+.consent-roots {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.22);
+  padding: 13px;
+}
+
+.consent-grid svg {
+  color: var(--cyan);
+}
+
+.consent-grid strong {
+  display: block;
+  margin: 8px 0 5px;
+  font-size: 14px;
+}
+
+.consent-roots {
+  display: grid;
+  gap: 8px;
+}
+
+.consent-roots .panel-title:not(:first-child) {
+  margin-top: 8px;
+}
+
+.consent-roots code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.consent-button {
+  margin-top: 18px;
+  min-height: 46px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper-strong);
+}
+
+.consent-footnote {
+  margin-top: 12px;
+  font-size: 12px;
 }
 
 .empty-state {
@@ -966,6 +1158,12 @@ code {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .consent-grid {
+    grid-template-columns: 1fr;
   }
 }
 

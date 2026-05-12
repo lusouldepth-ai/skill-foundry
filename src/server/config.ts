@@ -6,6 +6,8 @@ export interface AppConfig {
   projectRoot: string;
   dataDir: string;
   stateFile: string;
+  sourceFile: string;
+  consentFile: string;
   quarantineDir: string;
   backupDir: string;
   scanRoots: ScanRoot[];
@@ -29,6 +31,8 @@ export function loadConfig(): AppConfig {
     projectRoot,
     dataDir,
     stateFile: path.join(dataDir, "skill-state.json"),
+    sourceFile: path.join(dataDir, "skill-sources.json"),
+    consentFile: path.join(dataDir, "scan-consent.json"),
     quarantineDir: path.join(dataDir, "quarantine"),
     backupDir: path.join(dataDir, "backups"),
     scanRoots,
