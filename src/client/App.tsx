@@ -1,25 +1,40 @@
 import {
   Archive,
+  Blocks,
   Box,
+  Bot,
+  Braces,
+  Brush,
   Check,
   CircleAlert,
   Clock3,
+  Database,
   Edit3,
   Eye,
+  FileText,
   Filter,
   Folder,
   Gauge,
+  Globe2,
   Heart,
+  Languages,
+  Mail,
+  MonitorPlay,
+  Network,
   RefreshCw,
   Save,
   Search,
   Shield,
   Sparkles,
   Star,
+  TerminalSquare,
   Trash2,
+  Workflow,
   X
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { getDefaultLanguage, t, type I18nKey, type Language } from "./i18n";
+import { getSkillVisual, type SkillVisualIcon } from "./skillVisuals";
 
 type SourceKind = "custom" | "system" | "plugin" | "unknown";
 type Lifecycle = "active" | "optimize" | "archive" | "quarantined";
@@ -60,8 +75,10 @@ interface AppConfig {
 
 const sourceOptions = ["all", "custom", "system", "plugin"] as const;
 const lifecycleOptions: Array<Lifecycle | "all" | "stale"> = ["all", "active", "optimize", "archive", "stale"];
+const initialLanguage = getInitialLanguage();
 
 export function App() {
+  const [language, setLanguage] = useState<Language>(initialLanguage);
   const [data, setData] = useState<SkillsResponse | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [query, setQuery] = useState("");
@@ -74,13 +91,23 @@ export function App() {
   const [noteDraft, setNoteDraft] = useState("");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("Scanning local skills...");
+  const [notice, setNotice] = useState(t(initialLanguage, "status.scanning"));
+
+  const tr = (key: I18nKey, values?: Record<string, string | number>) => t(language, key, values);
 
   useEffect(() => {
     void loadAll();
     const timer = window.setInterval(() => void loadSkills(false), 15000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+    window.localStorage.setItem("skill-foundry-language", language);
+    if (data) {
+      setNotice(t(language, "status.synced", { count: data.skills.length, time: formatTime(data.scannedAt, language) }));
+    }
+  }, [language]);
 
   const skills = data?.skills ?? [];
   const selected = skills.find((skill) => skill.id === selectedId) ?? skills[0];
@@ -140,9 +167,9 @@ export function App() {
       const response = await fetch("/api/skills");
       const nextData = (await response.json()) as SkillsResponse;
       setData(nextData);
-      setNotice(`Synced ${nextData.skills.length} skills at ${formatTime(nextData.scannedAt)}`);
+      setNotice(t(language, "status.synced", { count: nextData.skills.length, time: formatTime(nextData.scannedAt, language) }));
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Scan failed");
+      setNotice(error instanceof Error ? error.message : t(language, "status.scanFailed"));
     } finally {
       setBusy(false);
     }
@@ -170,7 +197,7 @@ export function App() {
       });
       const nextData = (await response.json()) as SkillsResponse;
       setData(nextData);
-      setNotice("State saved");
+      setNotice(t(language, "status.saved"));
     } finally {
       setBusy(false);
     }
@@ -189,14 +216,14 @@ export function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Save failed");
+        throw new Error(body.error ?? t(language, "status.scanFailed"));
       }
       setContent(draftContent);
       setEditing(false);
-      setNotice(`Saved with backup at ${body.result.backupPath}`);
+      setNotice(t(language, "status.savedBackup", { path: body.result.backupPath }));
       await loadSkills(false);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Save failed");
+      setNotice(error instanceof Error ? error.message : t(language, "status.scanFailed"));
     } finally {
       setBusy(false);
     }
@@ -206,7 +233,9 @@ export function App() {
     if (!selected) {
       return;
     }
-    const confirmed = window.confirm(`Move "${selected.name}" to quarantine? This is reversible from ${config?.quarantineDir ?? "data/quarantine"}.`);
+    const confirmed = window.confirm(
+      t(language, "confirm.quarantine", { name: selected.name, path: config?.quarantineDir ?? "data/quarantine" })
+    );
     if (!confirmed) {
       return;
     }
@@ -215,13 +244,13 @@ export function App() {
       const response = await fetch(`/api/skills/${encodeURIComponent(selected.id)}/quarantine`, { method: "POST" });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Quarantine failed");
+        throw new Error(body.error ?? t(language, "status.scanFailed"));
       }
       setData(body.skills);
       setSelectedId(null);
-      setNotice(`Moved to quarantine: ${body.result.destination}`);
+      setNotice(t(language, "status.quarantined", { path: body.result.destination }));
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Quarantine failed");
+      setNotice(error instanceof Error ? error.message : t(language, "status.scanFailed"));
     } finally {
       setBusy(false);
     }
@@ -231,17 +260,29 @@ export function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <div className="eyebrow">Local skill operations</div>
-          <h1>Skill Foundry</h1>
+          <div className="eyebrow">{tr("app.eyebrow")}</div>
+          <h1>{tr("app.title")}</h1>
         </div>
         <div className="topbar-actions">
           <div className="scan-status">
             <Gauge size={16} />
             <span>{notice}</span>
           </div>
-          <button className="icon-button text-button" onClick={() => loadSkills(true)} disabled={busy} title="Sync local skills">
+          <div className="language-switch" aria-label="Language switch">
+            {(["zh", "en"] as Language[]).map((option) => (
+              <button
+                key={option}
+                className={language === option ? "seg active" : "seg"}
+                onClick={() => setLanguage(option)}
+              >
+                <Languages size={14} />
+                {t(language, option === "zh" ? "language.zh" : "language.en")}
+              </button>
+            ))}
+          </div>
+          <button className="icon-button text-button" onClick={() => loadSkills(true)} disabled={busy} title={tr("actions.sync")}>
             <RefreshCw size={16} className={busy ? "spin" : ""} />
-            Sync
+            {tr("actions.sync")}
           </button>
         </div>
       </header>
@@ -249,48 +290,48 @@ export function App() {
       <section className="layout">
         <aside className="control-rail">
           <div className="metric-grid">
-            <Metric label="Total" value={metrics.total} icon={<Box size={18} />} />
-            <Metric label="Custom" value={metrics.custom} icon={<Edit3 size={18} />} />
-            <Metric label="Protected" value={metrics.protectedCount} icon={<Shield size={18} />} />
-            <Metric label="Stale" value={metrics.stale} icon={<Clock3 size={18} />} />
-            <Metric label="Optimize" value={metrics.optimize} icon={<Sparkles size={18} />} />
-            <Metric label="Missing" value={metrics.missing} icon={<CircleAlert size={18} />} />
+            <Metric label={tr("metrics.total")} value={metrics.total} icon={<Box size={18} />} />
+            <Metric label={tr("metrics.custom")} value={metrics.custom} icon={<Edit3 size={18} />} />
+            <Metric label={tr("metrics.protected")} value={metrics.protectedCount} icon={<Shield size={18} />} />
+            <Metric label={tr("metrics.stale")} value={metrics.stale} icon={<Clock3 size={18} />} />
+            <Metric label={tr("metrics.optimize")} value={metrics.optimize} icon={<Sparkles size={18} />} />
+            <Metric label={tr("metrics.missing")} value={metrics.missing} icon={<CircleAlert size={18} />} />
           </div>
 
           <div className="filter-block">
             <label className="field-label" htmlFor="search">
               <Search size={14} />
-              Search
+              {tr("filters.search")}
             </label>
             <input
               id="search"
               className="search-input"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="name, path, note"
+              placeholder={tr("filters.searchPlaceholder")}
             />
           </div>
 
-          <FilterGroup label="Source" icon={<Folder size={14} />}>
+          <FilterGroup label={tr("filters.source")} icon={<Folder size={14} />}>
             {sourceOptions.map((option) => (
               <button
                 key={option}
                 className={sourceFilter === option ? "seg active" : "seg"}
                 onClick={() => setSourceFilter(option)}
               >
-                {option}
+                {sourceLabel(option, language)}
               </button>
             ))}
           </FilterGroup>
 
-          <FilterGroup label="Lifecycle" icon={<Filter size={14} />}>
+          <FilterGroup label={tr("filters.lifecycle")} icon={<Filter size={14} />}>
             {lifecycleOptions.map((option) => (
               <button
                 key={option}
                 className={lifecycleFilter === option ? "seg active" : "seg"}
                 onClick={() => setLifecycleFilter(option)}
               >
-                {option}
+                {lifecycleOptionLabel(option, language)}
               </button>
             ))}
           </FilterGroup>
@@ -298,7 +339,7 @@ export function App() {
           <div className="filter-block">
             <div className="field-label">
               <Clock3 size={14} />
-              Stale threshold
+              {tr("filters.staleThreshold")}
             </div>
             <div className="threshold-row">
               {[30, 60, 90].map((days) => (
@@ -310,7 +351,7 @@ export function App() {
           </div>
 
           <div className="path-panel">
-            <div className="panel-title">Scan roots</div>
+            <div className="panel-title">{tr("filters.scanRoots")}</div>
             {(config?.roots ?? data?.roots ?? []).map((root) => (
               <div className="root-line" key={`${root.label}:${root.path}`}>
                 <span>{root.kind}</span>
@@ -323,12 +364,12 @@ export function App() {
         <section className="skill-board">
           <div className="board-header">
             <div>
-              <div className="board-kicker">{filteredSkills.length} visible</div>
-              <h2>Inventory</h2>
+              <div className="board-kicker">{tr("board.visible", { count: filteredSkills.length })}</div>
+              <h2>{tr("board.inventory")}</h2>
             </div>
             <div className="policy-strip">
               <Shield size={15} />
-              Permanent delete disabled · protected sources read-only
+              {tr("board.policy")}
             </div>
           </div>
 
@@ -339,20 +380,18 @@ export function App() {
                 className={selected?.id === skill.id ? "skill-card selected" : "skill-card"}
                 onClick={() => setSelectedId(skill.id)}
               >
-                <div className={`plate ${skill.sourceKind}`}>
-                  <span>{initials(skill.name)}</span>
-                </div>
+                <SkillArtwork skill={skill} />
                 <div className="skill-card-body">
                   <div className="skill-card-top">
                     <strong>{skill.name}</strong>
                     {skill.favorite ? <Star size={15} fill="currentColor" /> : null}
                   </div>
-                  <p>{skill.description || "No description provided."}</p>
+                  <p>{skill.description || tr("skill.noDescription")}</p>
                   <div className="tags">
-                    <span>{skill.sourceKind}</span>
-                    <span>{skill.lifecycle}</span>
-                    {isStale(skill, staleDays) ? <span className="warn">stale</span> : null}
-                    {skill.descriptionMissing ? <span className="warn">missing description</span> : null}
+                    <span>{sourceLabel(skill.sourceKind, language)}</span>
+                    <span>{lifecycleOptionLabel(skill.lifecycle, language)}</span>
+                    {isStale(skill, staleDays) ? <span className="warn">{tr("lifecycle.stale")}</span> : null}
+                    {skill.descriptionMissing ? <span className="warn">{tr("skill.missingDescription")}</span> : null}
                   </div>
                 </div>
               </button>
@@ -364,9 +403,7 @@ export function App() {
           {selected ? (
             <>
               <div className="detail-heading">
-                <div className={`plate large ${selected.sourceKind}`}>
-                  <span>{initials(selected.name)}</span>
-                </div>
+                <SkillArtwork skill={selected} size="large" />
                 <div>
                   <div className="eyebrow">{selected.rootLabel}</div>
                   <h2>{selected.name}</h2>
@@ -376,21 +413,21 @@ export function App() {
               <div className="detail-actions">
                 <button
                   className="icon-button"
-                  title="Favorite"
+                  title={tr("actions.favorite")}
                   onClick={() => patchState(selected.id, { favorite: !selected.favorite })}
                 >
                   <Heart size={16} fill={selected.favorite ? "currentColor" : "none"} />
                 </button>
                 <button
                   className="icon-button"
-                  title="Mark used today"
+                  title={tr("actions.markUsed")}
                   onClick={() => patchState(selected.id, { lastUsedAt: new Date().toISOString(), lifecycle: "active" })}
                 >
                   <Check size={16} />
                 </button>
                 <button
                   className="icon-button danger"
-                  title="Move custom skill to quarantine"
+                  title={tr("actions.quarantine")}
                   onClick={quarantineSelected}
                   disabled={selected.riskLevel === "protected"}
                 >
@@ -406,20 +443,21 @@ export function App() {
                     onClick={() => patchState(selected.id, { lifecycle })}
                   >
                     {lifecycle === "archive" ? <Archive size={14} /> : null}
-                    {lifecycle}
+                    {lifecycleOptionLabel(lifecycle, language)}
                   </button>
                 ))}
               </div>
+              <div className="inline-help">{tr("detail.lifecycleHelp")}</div>
 
               <div className="meta-list">
-                <Meta label="Path" value={selected.skillFile} />
-                <Meta label="Modified" value={formatDate(selected.modifiedAt)} />
-                <Meta label="Last used" value={selected.lastUsedAt ? formatDate(selected.lastUsedAt) : "manual marker not set"} />
-                <Meta label="Size" value={`${Math.round(selected.sizeBytes / 10.24) / 100} KB`} />
+                <Meta label={tr("detail.path")} value={selected.skillFile} />
+                <Meta label={tr("detail.modified")} value={formatDate(selected.modifiedAt, language)} />
+                <Meta label={tr("detail.lastUsed")} value={selected.lastUsedAt ? formatDate(selected.lastUsedAt, language) : tr("detail.lastUsedUnset")} />
+                <Meta label={tr("detail.size")} value={`${Math.round(selected.sizeBytes / 10.24) / 100} KB`} />
               </div>
 
               <label className="notes-label" htmlFor="notes">
-                Notes
+                {tr("detail.notes")}
               </label>
               <textarea
                 id="notes"
@@ -431,28 +469,28 @@ export function App() {
                     void patchState(selected.id, { notes: noteDraft });
                   }
                 }}
-                placeholder="Add maintenance notes"
+                placeholder={tr("detail.notesPlaceholder")}
               />
 
               <div className="editor-header">
                 <div>
-                  <div className="panel-title">SKILL.md</div>
-                  <span>{selected.riskLevel === "protected" ? "Read-only protected source" : "Editable with automatic backup"}</span>
+                  <div className="panel-title">{tr("editor.title")}</div>
+                  <span>{selected.riskLevel === "protected" ? tr("editor.protected") : tr("editor.editable")}</span>
                 </div>
                 <div className="editor-actions">
                   {editing ? (
                     <>
-                      <button className="icon-button" title="Cancel" onClick={() => { setEditing(false); setDraftContent(content); }}>
+                      <button className="icon-button" title={tr("actions.cancel")} onClick={() => { setEditing(false); setDraftContent(content); }}>
                         <X size={16} />
                       </button>
-                      <button className="icon-button accent" title="Save" onClick={saveContent} disabled={busy}>
+                      <button className="icon-button accent" title={tr("actions.save")} onClick={saveContent} disabled={busy}>
                         <Save size={16} />
                       </button>
                     </>
                   ) : (
                     <button
                       className="icon-button"
-                      title="Edit custom skill"
+                      title={tr("actions.edit")}
                       onClick={() => setEditing(true)}
                       disabled={selected.riskLevel === "protected"}
                     >
@@ -466,14 +504,14 @@ export function App() {
                 <textarea className="skill-editor" value={draftContent} onChange={(event) => setDraftContent(event.target.value)} />
               ) : (
                 <pre className="skill-preview">
-                  <code>{previewContent(content || selected.bodyPreview)}</code>
+                  <code>{previewContent(content || selected.bodyPreview, language)}</code>
                 </pre>
               )}
             </>
           ) : (
             <div className="empty-state">
               <Eye size={24} />
-              <p>No skill selected.</p>
+              <p>{tr("empty.noSkill")}</p>
             </div>
           )}
         </aside>
@@ -518,26 +556,83 @@ function isStale(skill: SkillView, thresholdDays: number): boolean {
   return Number.isFinite(anchor) && Date.now() - anchor > thresholdDays * 24 * 60 * 60 * 1000;
 }
 
-function initials(name: string): string {
-  return name
-    .split(/[-_\s:]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
+const visualIcons: Record<SkillVisualIcon, typeof Sparkles> = {
+  bot: Bot,
+  blocks: Blocks,
+  globe: Globe2,
+  braces: Braces,
+  database: Database,
+  brush: Brush,
+  file: FileText,
+  media: MonitorPlay,
+  shield: Shield,
+  check: Check,
+  workflow: Workflow,
+  mail: Mail,
+  terminal: TerminalSquare,
+  spark: Sparkles
+};
+
+function SkillArtwork({ skill, size = "normal" }: { skill: SkillView; size?: "normal" | "large" }) {
+  const visual = getSkillVisual(skill);
+  const Icon = visualIcons[visual.icon];
+  return (
+    <div
+      className={`skill-art ${size} ${skill.sourceKind} category-${visual.category} variant-${visual.variant}`}
+      aria-hidden="true"
+      style={{ "--art-hue": visual.hue } as React.CSSProperties}
+    >
+      <div className="art-grid" />
+      <div className="art-orbit" />
+      <div className="art-core">
+        <Icon size={size === "large" ? 30 : 24} strokeWidth={1.75} />
+      </div>
+    </div>
+  );
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+function sourceLabel(source: SourceKind | "all", language: Language): string {
+  if (source === "all") {
+    return t(language, "options.all");
+  }
+  if (source === "custom") {
+    return t(language, "options.custom");
+  }
+  if (source === "system") {
+    return t(language, "options.system");
+  }
+  if (source === "plugin") {
+    return t(language, "options.plugin");
+  }
+  return source;
 }
 
-function formatTime(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { timeStyle: "medium" }).format(new Date(value));
+function lifecycleOptionLabel(lifecycle: Lifecycle | "all" | "stale", language: Language): string {
+  if (lifecycle === "all") {
+    return t(language, "options.all");
+  }
+  if (lifecycle === "stale") {
+    return t(language, "lifecycle.stale");
+  }
+  return t(language, `lifecycle.${lifecycle}`);
 }
 
-function previewContent(value: string): string {
+function getInitialLanguage(): Language {
+  const saved = globalThis.localStorage?.getItem("skill-foundry-language");
+  return saved === "zh" || saved === "en" ? saved : getDefaultLanguage();
+}
+
+function formatDate(value: string, language: Language): string {
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function formatTime(value: string, language: Language): string {
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", { timeStyle: "medium" }).format(new Date(value));
+}
+
+function previewContent(value: string, language: Language): string {
   if (value.length <= 6000) {
     return value;
   }
-  return `${value.slice(0, 6000)}\n\n[Preview truncated. Enter edit mode to load and save the full file.]`;
+  return `${value.slice(0, 6000)}\n\n${t(language, "editor.truncated")}`;
 }
