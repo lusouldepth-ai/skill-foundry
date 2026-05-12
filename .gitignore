@@ -1,0 +1,7 @@
+.superpowers/
+node_modules/
+dist/
+coverage/
+.DS_Store
+data/*.json
+data/quarantine/
