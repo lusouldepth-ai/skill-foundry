@@ -12,13 +12,10 @@ export interface QuarantineInput {
 
 export interface QuarantineResult {
   destination: string;
+  quarantinedProtectedSource: boolean;
 }
 
 export async function quarantineSkill(input: QuarantineInput): Promise<QuarantineResult> {
-  if (input.sourceKind === "plugin" || input.sourceKind === "system") {
-    throw new Error("This skill is protected and cannot be quarantined by the dashboard.");
-  }
-
   const skillDirectory = await realpath(input.skillDirectory);
   const allowedRoots = await existingRealRoots(input.allowedRoots);
   if (!allowedRoots.some((root) => isInsideRoot(skillDirectory, root))) {
@@ -37,7 +34,7 @@ export async function quarantineSkill(input: QuarantineInput): Promise<Quarantin
   const destination = await nextAvailableDestination(quarantineRoot, safeName(input.skillId));
   await rename(skillDirectory, destination);
 
-  return { destination };
+  return { destination, quarantinedProtectedSource: input.sourceKind === "plugin" || input.sourceKind === "system" };
 }
 
 async function existingRealRoots(roots: string[]): Promise<string[]> {

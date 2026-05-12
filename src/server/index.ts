@@ -6,7 +6,7 @@ import { updateSkillContent } from "../core/fileEditor";
 import { quarantineSkill } from "../core/quarantine";
 import { scanSkillRoots } from "../core/skillScanner";
 import { mergeSkillState, StateStore, type SkillUserState } from "../core/stateStore";
-import { loadConfig, manageableRoots } from "./config";
+import { allowedSkillRoots, loadConfig } from "./config";
 
 const isDev = process.argv.includes("--dev");
 const config = loadConfig();
@@ -65,7 +65,7 @@ app.patch("/api/skills/:id/content", async (request, response, next) => {
       skillFile: skill.skillFile,
       skillId: skill.id,
       sourceKind: skill.sourceKind,
-      allowedRoots: manageableRoots(config.scanRoots),
+      allowedRoots: allowedSkillRoots(config.scanRoots),
       backupRoot: config.backupDir,
       content: request.body.content
     });
@@ -98,7 +98,7 @@ app.post("/api/skills/:id/quarantine", async (request, response, next) => {
       skillDirectory: skill.directory,
       skillId: skill.id,
       sourceKind: skill.sourceKind,
-      allowedRoots: manageableRoots(config.scanRoots),
+      allowedRoots: allowedSkillRoots(config.scanRoots),
       quarantineRoot: config.quarantineDir
     });
 

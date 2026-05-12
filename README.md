@@ -34,6 +34,18 @@ The **Sync** button rescans local folders. It does not upload, download, or comm
 
 “同步”按钮只会重新扫描本机目录，不会上传、下载或提交任何 skill 内容。
 
+Bidirectional behavior:
+
+- Dashboard editor -> local file: saving in the dashboard writes the selected `SKILL.md` immediately after creating a backup.
+- Local file -> dashboard: editing a `SKILL.md` outside the app appears after clicking **Sync** or after the 15-second automatic scan.
+- Dashboard state such as notes, favorites, lifecycle, backups, and quarantine records stays in `data/`.
+
+双向行为：
+
+- 看板编辑器 -> 本地文件：在看板里保存会先备份，再立即写入对应的 `SKILL.md`。
+- 本地文件 -> 看板：在外部修改 `SKILL.md` 后，点击 **同步** 或等待 15 秒自动扫描即可进入看板。
+- 备注、收藏、生命周期、备份、隔离记录等看板状态保存在 `data/`。
+
 When someone else clones this project from GitHub:
 
 1. They run `npm install`.
@@ -50,10 +62,10 @@ When someone else clones this project from GitHub:
 
 ## Safety
 
-- Scanning is read-only.
-- Plugin and system skills are protected and read-only.
-- Custom skill edits create backups in `data/backups/`.
-- Quarantine moves custom skill directories to `data/quarantine/`.
+- Scanning is read-only until you explicitly save a file or quarantine a skill.
+- Plugin and system skills can be edited from the dashboard, but the UI asks for confirmation because plugin updates may overwrite local edits.
+- Skill edits create backups in `data/backups/`.
+- Quarantine moves skill directories to `data/quarantine/`.
 - Permanent deletion is intentionally not implemented.
 - Dashboard notes and lifecycle state live in `data/skill-state.json`.
 

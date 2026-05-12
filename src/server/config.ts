@@ -32,8 +32,8 @@ export function loadConfig(): AppConfig {
   };
 }
 
-export function manageableRoots(roots: ScanRoot[]): string[] {
-  return roots.filter((root) => root.kind === "custom").map((root) => expandHome(root.path));
+export function allowedSkillRoots(roots: ScanRoot[]): string[] {
+  return roots.map((root) => expandHome(root.path));
 }
 
 function defaultRoots(): ScanRoot[] {

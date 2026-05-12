@@ -13,13 +13,10 @@ export interface UpdateSkillContentInput {
 
 export interface UpdateSkillContentResult {
   backupPath: string;
+  editedProtectedSource: boolean;
 }
 
 export async function updateSkillContent(input: UpdateSkillContentInput): Promise<UpdateSkillContentResult> {
-  if (input.sourceKind === "plugin" || input.sourceKind === "system") {
-    throw new Error("This skill is protected and cannot be edited by the dashboard.");
-  }
-
   if (path.basename(input.skillFile) !== "SKILL.md") {
     throw new Error("Only SKILL.md files can be edited.");
   }
@@ -45,7 +42,7 @@ export async function updateSkillContent(input: UpdateSkillContentInput): Promis
   await writeFile(temporaryPath, input.content, "utf8");
   await rename(temporaryPath, skillFile);
 
-  return { backupPath };
+  return { backupPath, editedProtectedSource: input.sourceKind === "plugin" || input.sourceKind === "system" };
 }
 
 async function writeBackup(backupRoot: string, skillId: string, content: string): Promise<string> {

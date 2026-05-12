@@ -25,19 +25,21 @@ describe("quarantineSkill", () => {
     await expect(stat(skillDir)).rejects.toThrow();
   });
 
-  test("rejects protected plugin skills", async () => {
+  test("moves a protected plugin skill into quarantine when it is inside a configured root", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "skill-dashboard-quarantine-"));
     const skillDir = path.join(root, "plugin-skill");
     await mkdir(skillDir, { recursive: true });
+    await writeFile(path.join(skillDir, "SKILL.md"), "# Browser");
 
-    await expect(
-      quarantineSkill({
-        skillDirectory: skillDir,
-        skillId: "plugin:browser",
-        sourceKind: "plugin",
-        allowedRoots: [root],
-        quarantineRoot: path.join(root, ".quarantine")
-      })
-    ).rejects.toThrow("protected");
+    const result = await quarantineSkill({
+      skillDirectory: skillDir,
+      skillId: "plugin:browser",
+      sourceKind: "plugin",
+      allowedRoots: [root],
+      quarantineRoot: path.join(root, ".quarantine")
+    });
+
+    await expect(stat(result.destination)).resolves.toBeTruthy();
+    await expect(stat(skillDir)).rejects.toThrow();
   });
 });

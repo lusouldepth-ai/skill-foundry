@@ -26,20 +26,21 @@ describe("updateSkillContent", () => {
     await expect(readFile(result.backupPath, "utf8")).resolves.toBe("# Alpha\n\nOld body");
   });
 
-  test("rejects protected skill edits", async () => {
+  test("backs up and updates a protected plugin skill file when it is inside a configured root", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "skill-dashboard-editor-"));
     const skillFile = path.join(root, "SKILL.md");
     await writeFile(skillFile, "# Browser", "utf8");
 
-    await expect(
-      updateSkillContent({
-        skillFile,
-        skillId: "plugin:browser",
-        sourceKind: "plugin",
-        allowedRoots: [root],
-        backupRoot: path.join(root, ".backups"),
-        content: "# Browser\n\nChanged"
-      })
-    ).rejects.toThrow("protected");
+    const result = await updateSkillContent({
+      skillFile,
+      skillId: "plugin:browser",
+      sourceKind: "plugin",
+      allowedRoots: [root],
+      backupRoot: path.join(root, ".backups"),
+      content: "# Browser\n\nChanged"
+    });
+
+    await expect(readFile(skillFile, "utf8")).resolves.toBe("# Browser\n\nChanged");
+    await expect(readFile(result.backupPath, "utf8")).resolves.toBe("# Browser");
   });
 });

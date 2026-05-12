@@ -256,6 +256,16 @@ export function App() {
     }
   }
 
+  function startEditingSelected() {
+    if (!selected) {
+      return;
+    }
+    if (selected.riskLevel === "protected" && !window.confirm(t(language, "confirm.protectedEdit"))) {
+      return;
+    }
+    setEditing(true);
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -351,6 +361,10 @@ export function App() {
           </div>
 
           <div className="path-panel">
+            <div className="sync-model">
+              <RefreshCw size={15} />
+              <span>{tr("sync.help")}</span>
+            </div>
             <div className="panel-title">{tr("filters.scanRoots")}</div>
             {(config?.roots ?? data?.roots ?? []).map((root) => (
               <div className="root-line" key={`${root.label}:${root.path}`}>
@@ -412,28 +426,31 @@ export function App() {
 
               <div className="detail-actions">
                 <button
-                  className="icon-button"
+                  className="icon-button action-button"
                   title={tr("actions.favorite")}
                   onClick={() => patchState(selected.id, { favorite: !selected.favorite })}
                 >
                   <Heart size={16} fill={selected.favorite ? "currentColor" : "none"} />
+                  <span>{tr("actions.favorite")}</span>
                 </button>
                 <button
-                  className="icon-button"
+                  className="icon-button action-button"
                   title={tr("actions.markUsed")}
                   onClick={() => patchState(selected.id, { lastUsedAt: new Date().toISOString(), lifecycle: "active" })}
                 >
                   <Check size={16} />
+                  <span>{tr("actions.markUsed")}</span>
                 </button>
                 <button
-                  className="icon-button danger"
+                  className="icon-button action-button danger"
                   title={tr("actions.quarantine")}
                   onClick={quarantineSelected}
-                  disabled={selected.riskLevel === "protected"}
                 >
                   <Trash2 size={16} />
+                  <span>{tr("actions.quarantine")}</span>
                 </button>
               </div>
+              <div className="inline-help actions-help">{tr("detail.actionsHelp")}</div>
 
               <div className="lifecycle-control">
                 {(["active", "optimize", "archive"] as Lifecycle[]).map((lifecycle) => (
@@ -489,12 +506,12 @@ export function App() {
                     </>
                   ) : (
                     <button
-                      className="icon-button"
+                      className="icon-button action-button"
                       title={tr("actions.edit")}
-                      onClick={() => setEditing(true)}
-                      disabled={selected.riskLevel === "protected"}
+                      onClick={startEditingSelected}
                     >
                       <Edit3 size={16} />
+                      <span>{tr("actions.edit")}</span>
                     </button>
                   )}
                 </div>
@@ -582,8 +599,14 @@ function SkillArtwork({ skill, size = "normal" }: { skill: SkillView; size?: "no
       aria-hidden="true"
       style={{ "--art-hue": visual.hue } as React.CSSProperties}
     >
-      <div className="art-grid" />
-      <div className="art-orbit" />
+      <div className="art-backplate" />
+      <div className="art-frame" />
+      <div className="art-motif">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="art-core">
         <Icon size={size === "large" ? 30 : 24} strokeWidth={1.75} />
       </div>
