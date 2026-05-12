@@ -24,4 +24,23 @@ describe("getSkillVisual", () => {
     expect(visual.category).toBe("browser");
     expect(visual.icon).toBe("globe");
   });
+
+  test("derives stable composition parameters per skill", () => {
+    const first = getSkillVisual({
+      id: "custom:alpha",
+      name: "alpha",
+      description: "Review and verify code."
+    });
+    const second = getSkillVisual({
+      id: "custom:beta",
+      name: "beta",
+      description: "Review and verify code."
+    });
+
+    expect(first.angle).toBeGreaterThanOrEqual(-16);
+    expect(first.angle).toBeLessThanOrEqual(16);
+    expect(first.scale).toBeGreaterThanOrEqual(0.88);
+    expect(first.scale).toBeLessThanOrEqual(1.08);
+    expect(first.angle).not.toBe(second.angle);
+  });
 });

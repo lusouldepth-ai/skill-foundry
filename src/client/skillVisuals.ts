@@ -42,6 +42,10 @@ export interface SkillVisual {
   label: string;
   hue: number;
   variant: number;
+  angle: number;
+  scale: number;
+  density: number;
+  offset: number;
 }
 
 const rules: Array<{ category: SkillVisualCategory; icon: SkillVisualIcon; terms: string[] }> = [
@@ -69,8 +73,12 @@ export function getSkillVisual(skill: SkillVisualInput): SkillVisual {
     category,
     icon: match?.icon ?? "spark",
     label: category,
-    hue: 172 + (hashValue % 42),
-    variant: hashValue % 5
+    hue: 168 + (hashValue % 54),
+    variant: hashValue % 7,
+    angle: (hashValue % 33) - 16,
+    scale: 0.88 + (((hashValue >>> 3) % 21) / 100),
+    density: 6 + ((hashValue >>> 6) % 8),
+    offset: (hashValue >>> 9) % 18
   };
 }
 

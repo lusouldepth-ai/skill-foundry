@@ -597,7 +597,15 @@ function SkillArtwork({ skill, size = "normal" }: { skill: SkillView; size?: "no
     <div
       className={`skill-art ${size} ${skill.sourceKind} category-${visual.category} variant-${visual.variant}`}
       aria-hidden="true"
-      style={{ "--art-hue": visual.hue } as React.CSSProperties}
+      style={
+        {
+          "--art-hue": visual.hue,
+          "--art-angle": `${visual.angle}deg`,
+          "--art-scale": visual.scale,
+          "--art-density": `${visual.density}px`,
+          "--art-offset": `${visual.offset}px`
+        } as React.CSSProperties
+      }
     >
       <div className="art-backplate" />
       <div className="art-frame" />
