@@ -1,6 +1,7 @@
 import express from "express";
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -8,8 +9,8 @@ import { purgeArchivedSkills } from "../core/archiveCleanup";
 import { updateSkillContent } from "../core/fileEditor";
 import { quarantineSkill } from "../core/quarantine";
 import { ScanConsentStore } from "../core/scanConsent";
-import { scanSkillRoots, type SkillRecord } from "../core/skillScanner";
-import { mergeSkillState, StateStore, type SkillUserState } from "../core/stateStore";
+import { scanSkillRoots, type ScanRoot, type SkillRecord } from "../core/skillScanner";
+import { mergeSkillState, StateStore, type SkillUserState, type SkillView } from "../core/stateStore";
 import {
   applyGitHubSkillUpdate,
   hashSkillContent,
@@ -39,7 +40,7 @@ app.get("/api/health", (_request, response) => {
 app.get("/api/consent", async (_request, response, next) => {
   try {
     const consent = await consentStore.read();
-    response.json({ hasConsent: Boolean(consent), consent });
+    response.json({ hasConsent: Boolean(consent), consent: consent ? publicConsent(consent) : null });
   } catch (error) {
     next(error);
   }
@@ -48,10 +49,10 @@ app.get("/api/consent", async (_request, response, next) => {
 app.post("/api/consent", async (_request, response, next) => {
   try {
     const consent = await consentStore.grant({
-      scanRoots: config.scanRoots.map((root) => root.path),
-      usageRoots: config.usageRoots
+      scanRoots: config.scanRoots.map((root) => compactHomePath(root.path)),
+      usageRoots: config.usageRoots.map(compactHomePath)
     });
-    response.json({ hasConsent: true, consent });
+    response.json({ hasConsent: true, consent: publicConsent(consent) });
   } catch (error) {
     next(error);
   }
@@ -62,7 +63,7 @@ app.get("/api/skills", async (_request, response, next) => {
     if (!(await hasScanConsent(response))) {
       return;
     }
-    response.json(await scanAndMerge());
+    response.json(publicSkillsResponse(await scanAndMerge()));
   } catch (error) {
     next(error);
   }
@@ -73,7 +74,7 @@ app.post("/api/scan", async (_request, response, next) => {
     if (!(await hasScanConsent(response))) {
       return;
     }
-    response.json(await scanAndMerge());
+    response.json(publicSkillsResponse(await scanAndMerge()));
   } catch (error) {
     next(error);
   }
@@ -93,7 +94,7 @@ app.post("/api/duplicates/archive", async (_request, response, next) => {
       await stateStore.update(skill.id, { lifecycle: "archive" });
     }
 
-    response.json({ ...(await scanAndMerge()), archivedCount: duplicateCopies.length });
+    response.json({ ...publicSkillsResponse(await scanAndMerge()), archivedCount: duplicateCopies.length });
   } catch (error) {
     next(error);
   }
@@ -125,10 +126,10 @@ app.post("/api/duplicates/quarantine", async (_request, response, next) => {
         quarantinedAt,
         quarantinePath: result.destination
       });
-      quarantined.push({ skillId: skill.id, destination: result.destination });
+      quarantined.push({ skillId: skill.id, destination: compactHomePath(result.destination) });
     }
 
-    response.json({ ...(await scanAndMerge()), quarantinedCount: quarantined.length, quarantined });
+    response.json({ ...publicSkillsResponse(await scanAndMerge()), quarantinedCount: quarantined.length, quarantined });
   } catch (error) {
     next(error);
   }
@@ -154,7 +155,11 @@ app.post("/api/archive/purge", async (_request, response, next) => {
       });
     }
 
-    response.json({ ...(await scanAndMerge()), purgedCount: purged.length, purged });
+    response.json({
+      ...publicSkillsResponse(await scanAndMerge()),
+      purgedCount: purged.length,
+      purged: purged.map((item) => ({ ...item, destination: compactHomePath(item.destination) }))
+    });
   } catch (error) {
     next(error);
   }
@@ -244,14 +249,14 @@ app.post("/api/skills/:id/update", async (request, response, next) => {
     await sourceStore.update(skill.id, result.source);
 
     response.json({
-      result,
+      result: publicPathResult(result),
       update: await inspectGitHubSkillUpdate({
         skillFile: skill.skillFile,
         sourceKind: skill.sourceKind,
         source: result.source,
         fetchText: fetchRemoteText
       }),
-      skills: await scanAndMerge()
+      skills: publicSkillsResponse(await scanAndMerge())
     });
   } catch (error) {
     next(error);
@@ -299,7 +304,7 @@ app.patch("/api/skills/:id/content", async (request, response, next) => {
       content: request.body.content
     });
 
-    response.json({ result, skills: await scanAndMerge() });
+    response.json({ result: publicPathResult(result), skills: publicSkillsResponse(await scanAndMerge()) });
   } catch (error) {
     next(error);
   }
@@ -312,7 +317,7 @@ app.patch("/api/skills/:id/state", async (request, response, next) => {
     }
     const patch = sanitizeStatePatch(request.body);
     await stateStore.update(request.params.id, patch);
-    response.json(await scanAndMerge());
+    response.json(publicSkillsResponse(await scanAndMerge()));
   } catch (error) {
     next(error);
   }
@@ -343,7 +348,7 @@ app.post("/api/skills/:id/quarantine", async (request, response, next) => {
       quarantinePath: result.destination
     });
 
-    response.json({ result, skills: await scanAndMerge() });
+    response.json({ result: publicPathResult(result), skills: publicSkillsResponse(await scanAndMerge()) });
   } catch (error) {
     next(error);
   }
@@ -351,12 +356,12 @@ app.post("/api/skills/:id/quarantine", async (request, response, next) => {
 
 app.get("/api/config", (_request, response) => {
   response.json({
-    roots: config.scanRoots,
-    usageRoots: config.usageRoots,
-    dataDir: config.dataDir,
-    consentFile: config.consentFile,
-    quarantineDir: config.quarantineDir,
-    backupDir: config.backupDir,
+    roots: config.scanRoots.map(publicScanRoot),
+    usageRoots: config.usageRoots.map(compactHomePath),
+    dataDir: compactHomePath(config.dataDir),
+    consentFile: compactHomePath(config.consentFile),
+    quarantineDir: compactHomePath(config.quarantineDir),
+    backupDir: compactHomePath(config.backupDir),
     safety: {
       permanentDelete: false,
       protectedSources: ["system", "plugin"]
@@ -408,6 +413,58 @@ async function scanAndMerge() {
     roots: config.scanRoots,
     skills: mergeSkillState(skills, state, usage)
   };
+}
+
+function publicSkillsResponse(input: { scannedAt: string; roots: ScanRoot[]; skills: SkillView[] }) {
+  return {
+    scannedAt: input.scannedAt,
+    roots: input.roots.map(publicScanRoot),
+    skills: input.skills.map(publicSkill)
+  };
+}
+
+function publicScanRoot(root: ScanRoot): ScanRoot {
+  return { ...root, path: compactHomePath(root.path) };
+}
+
+function publicSkill(skill: SkillView): SkillView {
+  return {
+    ...skill,
+    directory: compactHomePath(skill.directory),
+    skillFile: compactHomePath(skill.skillFile),
+    quarantinePath: skill.quarantinePath ? compactHomePath(skill.quarantinePath) : undefined
+  };
+}
+
+function publicConsent<T extends { scanRoots: string[]; usageRoots: string[] }>(consent: T): T {
+  return {
+    ...consent,
+    scanRoots: consent.scanRoots.map(compactHomePath),
+    usageRoots: consent.usageRoots.map(compactHomePath)
+  };
+}
+
+function publicPathResult<T extends object>(result: T): T {
+  const next = Object.assign({}, result) as Record<string, unknown>;
+  for (const key of ["backupPath", "destination", "path", "quarantinePath"]) {
+    if (typeof next[key] === "string") {
+      next[key] = compactHomePath(next[key]);
+    }
+  }
+  return next as T;
+}
+
+function compactHomePath(value: string): string {
+  const home = os.homedir();
+  const normalizedValue = path.resolve(value);
+  const normalizedHome = path.resolve(home);
+  if (normalizedValue === normalizedHome) {
+    return "~";
+  }
+  if (normalizedValue.startsWith(`${normalizedHome}${path.sep}`)) {
+    return `~/${path.relative(normalizedHome, normalizedValue).split(path.sep).join("/")}`;
+  }
+  return value;
 }
 
 async function findSkill(skillId: string) {

@@ -25,6 +25,7 @@ Skill Foundry is designed as a local-only tool:
 
 - The server binds to `127.0.0.1`.
 - The app asks for consent before scanning local skill roots or Codex session paths.
+- API responses and UI labels compact the user's home directory to `~` instead of exposing `/Users/name` or `/home/name`.
 - `data/` contains local state, notes, backups, quarantine files, GitHub source bindings, and the scan consent record. It is ignored by git.
 - Sync means "rescan local folders"; it does not upload, publish, or commit skill content.
 - GitHub update checks fetch remote `SKILL.md` files only for skills whose source you bind or whose custom git repo can be inferred.
@@ -33,6 +34,7 @@ Skill Foundry 的隐私边界：
 
 - 服务只绑定到 `127.0.0.1`。
 - 扫描本机 skill 目录或 Codex 会话路径前，必须先获得授权。
+- API 响应和界面展示会把用户 home 目录压缩成 `~`，避免暴露 `/Users/name` 或 `/home/name`。
 - `data/` 保存本地状态、备注、备份、隔离文件、GitHub 来源绑定和扫描授权记录；该目录被 git 忽略。
 - 同步只表示“重新扫描本地目录”，不会上传、公开或提交 skill 内容。
 - GitHub 更新检查只会读取你绑定来源的远端 `SKILL.md`，或能从自定义 skill 所在 git 仓库推断出的来源。
