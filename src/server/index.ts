@@ -6,12 +6,14 @@ import { updateSkillContent } from "../core/fileEditor";
 import { quarantineSkill } from "../core/quarantine";
 import { scanSkillRoots } from "../core/skillScanner";
 import { mergeSkillState, StateStore, type SkillUserState } from "../core/stateStore";
+import { SessionUsageIndex } from "../core/usageIndex";
 import { allowedSkillRoots, loadConfig } from "./config";
 
 const isDev = process.argv.includes("--dev");
 const config = loadConfig();
 const app = express();
 const stateStore = new StateStore(config.stateFile);
+const usageIndex = new SessionUsageIndex(config.usageRoots);
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -117,6 +119,7 @@ app.post("/api/skills/:id/quarantine", async (request, response, next) => {
 app.get("/api/config", (_request, response) => {
   response.json({
     roots: config.scanRoots,
+    usageRoots: config.usageRoots,
     dataDir: config.dataDir,
     quarantineDir: config.quarantineDir,
     backupDir: config.backupDir,
@@ -153,10 +156,11 @@ app.listen(config.port, "127.0.0.1", () => {
 
 async function scanAndMerge() {
   const [skills, state] = await Promise.all([scanSkillRoots(config.scanRoots), stateStore.read()]);
+  const usage = await usageIndex.read(skills);
   return {
     scannedAt: new Date().toISOString(),
     roots: config.scanRoots,
-    skills: mergeSkillState(skills, state)
+    skills: mergeSkillState(skills, state, usage)
   };
 }
 

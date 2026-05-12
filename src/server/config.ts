@@ -9,6 +9,7 @@ export interface AppConfig {
   quarantineDir: string;
   backupDir: string;
   scanRoots: ScanRoot[];
+  usageRoots: string[];
   port: number;
 }
 
@@ -20,6 +21,9 @@ export function loadConfig(): AppConfig {
   const scanRoots = process.env.SKILL_DASHBOARD_ROOTS
     ? parseRoots(process.env.SKILL_DASHBOARD_ROOTS)
     : defaultRoots();
+  const usageRoots = process.env.SKILL_DASHBOARD_USAGE_ROOTS
+    ? process.env.SKILL_DASHBOARD_USAGE_ROOTS.split(",").map((root) => expandHome(root.trim())).filter(Boolean)
+    : defaultUsageRoots();
 
   return {
     projectRoot,
@@ -28,6 +32,7 @@ export function loadConfig(): AppConfig {
     quarantineDir: path.join(dataDir, "quarantine"),
     backupDir: path.join(dataDir, "backups"),
     scanRoots,
+    usageRoots,
     port: Number(process.env.PORT ?? 5173)
   };
 }
@@ -44,6 +49,10 @@ function defaultRoots(): ScanRoot[] {
     { label: "plugin-cache", path: "~/.codex/plugins/cache", kind: "plugin" }
   ];
   return roots.map((root) => ({ ...root, path: expandHome(root.path) }));
+}
+
+function defaultUsageRoots(): string[] {
+  return [expandHome("~/.codex/sessions"), expandHome("~/.codex/archived_sessions")];
 }
 
 function parseRoots(value: string): ScanRoot[] {

@@ -38,6 +38,7 @@ import { getSkillVisual, type SkillVisualIcon } from "./skillVisuals";
 
 type SourceKind = "custom" | "system" | "plugin" | "unknown";
 type Lifecycle = "active" | "optimize" | "archive" | "quarantined";
+type ActivitySource = "manual" | "session" | "modified";
 
 interface SkillView {
   id: string;
@@ -56,6 +57,9 @@ interface SkillView {
   favorite: boolean;
   notes: string;
   lastUsedAt?: string;
+  detectedUsedAt?: string;
+  lastActivityAt?: string;
+  lastActivitySource?: ActivitySource;
   quarantinedAt?: string;
   quarantinePath?: string;
 }
@@ -446,6 +450,7 @@ export function App() {
                 </button>
               ))}
             </div>
+            <p className="filter-help">{tr("filters.staleHelp")}</p>
           </div>
 
           <div className="path-panel">
@@ -584,7 +589,8 @@ export function App() {
               <div className="meta-list">
                 <Meta label={tr("detail.path")} value={selected.skillFile} />
                 <Meta label={tr("detail.modified")} value={formatDate(selected.modifiedAt, language)} />
-                <Meta label={tr("detail.lastUsed")} value={selected.lastUsedAt ? formatDate(selected.lastUsedAt, language) : tr("detail.lastUsedUnset")} />
+                <Meta label={tr("detail.lastActivity")} value={formatDate(getLastActivityAt(selected), language)} />
+                <Meta label={tr("detail.activitySource")} value={activitySourceLabel(selected.lastActivitySource ?? "modified", language)} />
                 <Meta label={tr("detail.size")} value={`${Math.round(selected.sizeBytes / 10.24) / 100} KB`} />
               </div>
 
@@ -696,8 +702,12 @@ function Meta({ label, value }: { label: string; value: string }) {
 }
 
 function isStale(skill: SkillView, thresholdDays: number): boolean {
-  const anchor = new Date(skill.lastUsedAt ?? skill.modifiedAt).getTime();
+  const anchor = new Date(getLastActivityAt(skill)).getTime();
   return Number.isFinite(anchor) && Date.now() - anchor > thresholdDays * 24 * 60 * 60 * 1000;
+}
+
+function getLastActivityAt(skill: SkillView): string {
+  return skill.lastActivityAt ?? skill.lastUsedAt ?? skill.modifiedAt;
 }
 
 const visualIcons: Record<SkillVisualIcon, typeof Sparkles> = {
@@ -773,6 +783,10 @@ function lifecycleOptionLabel(lifecycle: Lifecycle | "all" | "stale", language: 
     return t(language, "lifecycle.stale");
   }
   return t(language, `lifecycle.${lifecycle}`);
+}
+
+function activitySourceLabel(source: ActivitySource, language: Language): string {
+  return t(language, `activity.${source}`);
 }
 
 function getInitialLanguage(): Language {

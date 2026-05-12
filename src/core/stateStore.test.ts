@@ -38,6 +38,18 @@ describe("mergeSkillState", () => {
     expect(merged[0].lifecycle).toBe("optimize");
     expect(merged[0].favorite).toBe(true);
     expect(merged[0].notes).toBe("Improve examples");
+    expect(merged[0].lastActivitySource).toBe("manual");
+  });
+
+  test("uses detected session activity when it is newer than file changes", () => {
+    const merged = mergeSkillState(
+      [skill({ id: "custom:alpha", modifiedAt: "2026-01-01T00:00:00.000Z" })],
+      {},
+      { "custom:alpha": { detectedUsedAt: "2026-03-01T00:00:00.000Z" } }
+    );
+
+    expect(merged[0].lastActivityAt).toBe("2026-03-01T00:00:00.000Z");
+    expect(merged[0].lastActivitySource).toBe("session");
   });
 });
 

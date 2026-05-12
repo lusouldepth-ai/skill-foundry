@@ -34,6 +34,24 @@ The **Sync** button rescans local folders. It does not upload, download, or comm
 
 “同步”按钮只会重新扫描本机目录，不会上传、下载或提交任何 skill 内容。
 
+## Idle Threshold / 闲置阈值
+
+Idle status is not based on manual clicks. The dashboard calculates `Last activity` from the newest of:
+
+- Codex session evidence: the local session log shows the skill's `SKILL.md` was actually opened or the assistant explicitly announced using that skill.
+- File modification time: editing a skill counts as activity.
+- Manual correction: **Correct use** is only a fallback for cases where automatic detection misses a real use.
+
+闲置状态不靠你每次手动标记。看板会从下面三类时间里取最新值作为“最近活动”：
+
+- Codex 会话证据：本地 session 记录显示该 skill 的 `SKILL.md` 被实际读取，或助手明确声明使用了该 skill。
+- 文件修改时间：编辑过 skill 也算一次活动。
+- 手动修正：**修正使用** 只是在自动检测漏记时用来补一笔。
+
+By default, activity evidence is read from `~/.codex/sessions` and `~/.codex/archived_sessions`. Override with `SKILL_DASHBOARD_USAGE_ROOTS` if your Codex history lives elsewhere.
+
+默认会从 `~/.codex/sessions` 和 `~/.codex/archived_sessions` 读取活动证据。如果你的 Codex 历史在别处，可以用 `SKILL_DASHBOARD_USAGE_ROOTS` 覆盖。
+
 Bidirectional behavior:
 
 - Dashboard editor -> local file: saving in the dashboard writes the selected `SKILL.md` immediately after creating a backup.

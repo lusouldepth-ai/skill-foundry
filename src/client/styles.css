@@ -217,6 +217,13 @@ h2 {
   margin-top: 18px;
 }
 
+.filter-help {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .search-input {
   width: 100%;
   height: 42px;
